@@ -1,4 +1,22 @@
 {
+  "name": "fcatch",
+  "version": "0.0.1-alpha.0",
+  "description": "Catch errors as values.",
+  "keywords": [
+    "try",
+    "catch",
+    "error"
+  ],
+  "homepage": "https://github.com/Arnesfield/fcatch#readme",
+  "bugs": {
+    "url": "https://github.com/Arnesfield/fcatch/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arnesfield/fcatch.git"
+  },
+  "license": "MIT",
+  "author": "Jefferson Rylee <rylee.jeff385@gmail.com>",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -10,8 +28,6 @@
     "./package.json": "./package.json"
   },
   "main": "lib/index.cjs",
-  "jsdelivr": "lib/index.umd.min.js",
-  "unpkg": "lib/index.umd.min.js",
   "module": "lib/index.mjs",
   "types": "lib/index.d.ts",
   "files": [
@@ -29,5 +45,8 @@
     "test": "npm run all -- mocha npm:check",
     "test:watch": "mocha -w",
     "watch": "npm run bundle -- -w --no-watch.clearScreen"
+  },
+  "engines": {
+    "node": ">=8"
   }
 }
