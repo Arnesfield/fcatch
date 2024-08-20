@@ -1,0 +1,33 @@
+{
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.mjs",
+      "require": "./lib/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "lib/index.cjs",
+  "jsdelivr": "lib/index.umd.min.js",
+  "unpkg": "lib/index.umd.min.js",
+  "module": "lib/index.mjs",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "all": "concurrently -r --kill-others-on-fail",
+    "build": "npm run all -- npm:bundle npm:check",
+    "prebundle": "rimraf lib",
+    "bundle": "rollup -c rollup.config.ts --configPlugin \"esbuild={target:'esnext'}\"",
+    "check": "npm run all -- \"npm:lint -- --max-warnings 0\" \"tsc --skipLibCheck\"",
+    "format": "npm run lint -- --fix && prettier -cw .",
+    "lint": "eslint . --ext .js,.ts",
+    "start": "npm run watch -- --environment NODE_ENV:development",
+    "test": "npm run all -- mocha npm:check",
+    "test:watch": "mocha -w",
+    "watch": "npm run bundle -- -w --no-watch.clearScreen"
+  }
+}
