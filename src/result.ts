@@ -1,5 +1,7 @@
 import { Result } from './types.js';
 
+export function res<T, E>(value: T): Result<T, E>;
+export function res<T, E>(value: null, error: E, ok: false): Result<T, E>;
 export function res<T, E>(
   value: T | null,
   error: E | null = null,
