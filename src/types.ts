@@ -1,5 +1,6 @@
-export type Result<T, E> = ([null, T] | [E, null]) &
-  ({ ok: true; value: T; error: null } | { ok: false; value: null; error: E });
+export type Result<T, E = unknown> =
+  | ([null, T] & { ok: true; value: T; error: null })
+  | ([E, null] & { ok: false; value: null; error: E });
 
 export interface Catch<E = unknown> {
   sync<T extends (...args: any) => any>(
