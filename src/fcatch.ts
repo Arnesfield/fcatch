@@ -1,6 +1,12 @@
 import { res } from './result.js';
 import { Catch } from './types.js';
 
+/**
+ * Create a {@linkcode Catch} object to wrap a function or resolve a promise.
+ * @template E The error type.
+ * @param mapErr A function to map the caught error if any.
+ * @returns The {@linkcode Catch} object.
+ */
 export function fcatch<E>(
   mapErr: (error: unknown) => E = error => error as E
 ): Catch<E> {
