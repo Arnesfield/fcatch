@@ -51,9 +51,7 @@ describe('f', () => {
     const b: FCatch<Error> = f<Error>();
     expect(a).to.equal(b); // useless check
   });
-});
 
-describe('props', () => {
   it('sync call should return a function', () => {
     expect(f.sync(() => {})).to.be.a('function');
   });
@@ -155,13 +153,6 @@ describe('props', () => {
     greeter.value = this.value;
     return greeter;
   }
-
-  describe('catch', () => {
-    it('should accept a map error function', () => {
-      const fc: Catch<Error> = f.catch(error => error as Error);
-      expectCatch(fc);
-    });
-  });
 
   describe('sync', () => {
     it('should return a Result object', () => {
@@ -416,6 +407,13 @@ describe('props', () => {
       const result = await promise;
       expectResult(result, false);
       expect(result.error).to.be.a('string').that.equals('Not implemented.');
+    });
+  });
+
+  describe('catch', () => {
+    it('should accept a map error function', () => {
+      const fc: Catch<Error> = f.catch(error => error as Error);
+      expectCatch(fc);
     });
   });
 });
