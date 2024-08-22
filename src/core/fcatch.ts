@@ -1,13 +1,21 @@
+import { Catch } from '../types/catch.types.js';
+import { FCatch } from '../types/fcatch.types.js';
 import { res } from './result.js';
-import { Catch } from './types.js';
 
 /**
- * Create a {@linkcode Catch} object to wrap a function or resolve a promise.
- * @template E The error type.
- * @param mapErr A function to map the caught error if any.
- * @returns The {@linkcode Catch} object.
+ * The FCatch object.
+ * ```
+ * f.run(() => 'Hello World'); // Result<string, unknown>
+ * f<Error>().run(() => 'Hello World'); // Result<string, Error>
+ * ```
  */
-export function fcatch<E>(
+export const f = (() => f) as FCatch;
+const props = { ...create(), catch: mapErr => create(mapErr) } as FCatch;
+for (const [key, value] of Object.entries(props)) {
+  Object.defineProperty(f, key, { value, enumerable: true });
+}
+
+function create<E>(
   mapErr: (error: unknown) => E = error => error as E
 ): Catch<E> {
   function sync<T extends (...args: any) => any>(fn: T) {
@@ -32,13 +40,16 @@ export function fcatch<E>(
     };
   }
 
-  async function resolve<T>(promise: PromiseLike<T>) {
-    try {
-      return res<T, E>(await promise);
-    } catch (error) {
-      return res<T, E>(null, mapErr(error), false);
-    }
+  // include async here to ensure promise in case fn is non-async
+  async function runAsync<T>(fn: () => T) {
+    return async(fn)();
   }
 
-  return { sync, async, resolve };
+  return {
+    sync,
+    async,
+    run: fn => sync(fn)(),
+    runAsync,
+    resolve: promise => runAsync(() => promise)
+  };
 }

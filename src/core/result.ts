@@ -1,4 +1,4 @@
-import { Result } from './types.js';
+import { Result } from '../types/result.types.js';
 
 export function res<T, E>(value: T): Result<T, E>;
 export function res<T, E>(value: null, error: E, ok: false): Result<T, E>;
