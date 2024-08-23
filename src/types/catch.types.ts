@@ -1,4 +1,5 @@
 import { Result } from './result.types.js';
+import { FunctionParameters } from './util.types.js';
 
 /**
  * The Catch object.
@@ -11,14 +12,20 @@ export interface Catch<E = unknown> {
    * @param fn The function to run.
    * @returns The transformed result.
    */
-  run<T>(fn: () => T): Result<T, E>;
+  run<T extends (...args: any) => any>(
+    fn: T,
+    ...args: FunctionParameters<T>
+  ): Result<ReturnType<T>, E>;
   /**
    * Runs a function that will catch errors and transform
    * the result to a Promise that resolves to a {@linkcode Result} type.
    * @param fn The function to run.
    * @returns The transformed Promise result.
    */
-  runAsync<T>(fn: () => T): Promise<Result<Awaited<T>, E>>;
+  runAsync<T extends (...args: any) => any>(
+    fn: T,
+    ...args: FunctionParameters<T>
+  ): Promise<Result<Awaited<T>, E>>;
   /**
    * Wrap the promise with another that catches errors and transforms
    * the result to a {@linkcode Result} type.

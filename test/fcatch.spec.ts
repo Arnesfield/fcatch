@@ -161,6 +161,8 @@ describe('f', () => {
     });
   });
 
+  // TODO: run and runAsync, test this and args
+
   describe('run', () => {
     it('should run and return a Result object', () => {
       const result = f.run(() => 1);
