@@ -1,4 +1,4 @@
-/** Get function parameters including `this` type. */
+/** Get `this` and function parameters. */
 export type FunctionParameters<
   F extends (...args: any) => any,
   T = ThisParameterType<F>,

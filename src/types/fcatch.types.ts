@@ -6,9 +6,9 @@ import { Catch } from './catch.types.js';
  */
 export interface FCatch<E = unknown> extends Catch<E> {
   /**
-   * Call to return itself to accept an error generic type.
+   * Call to return itself and to explicitly specify an error generic type.
    * ```
-   * f<Error>().run(() => 'Hello World'); // Result<string, Error>
+   * f<Error>().run(() => 'Hello World!'); // Result<string, Error>
    * ```
    * @template F The error type.
    * @returns Itself but with the specified error generic type.
@@ -16,7 +16,7 @@ export interface FCatch<E = unknown> extends Catch<E> {
   <F = E>(): FCatch<F>;
   /**
    * Creates a new {@linkcode Catch} object that uses
-   * the provided function to map errors.
+   * the provided function to map caught errors.
    * @template F The error type.
    * @param mapErr A function to map the caught error if any.
    * @returns The {@linkcode Catch} object.

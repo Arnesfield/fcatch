@@ -7,8 +7,8 @@ import { res } from './result.js';
 /**
  * The FCatch object.
  * ```
- * f.run(() => 'Hello World'); // Result<string, unknown>
- * f<Error>().run(() => 'Hello World'); // Result<string, Error>
+ * f.run(() => 'Hello World!'); // Result<string, unknown>
+ * f<Error>().run(() => 'Hello World!'); // Result<string, Error>
  * ```
  */
 export const f = (() => f) as FCatch;

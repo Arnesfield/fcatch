@@ -10,7 +10,8 @@ export interface Catch<E = unknown> {
    * Runs a function that will catch errors and transform
    * the result to a {@linkcode Result} type.
    * @param fn The function to run.
-   * @returns The transformed result.
+   * @param args The `this` and function arguments.
+   * @returns The result.
    */
   run<T extends (...args: any) => any>(
     fn: T,
@@ -20,17 +21,18 @@ export interface Catch<E = unknown> {
    * Runs a function that will catch errors and transform
    * the result to a Promise that resolves to a {@linkcode Result} type.
    * @param fn The function to run.
-   * @returns The transformed Promise result.
+   * @param args The `this` and function arguments.
+   * @returns The Promise result.
    */
   runAsync<T extends (...args: any) => any>(
     fn: T,
     ...args: FunctionParameters<T>
   ): Promise<Result<Awaited<T>, E>>;
   /**
-   * Wrap the promise with another that catches errors and transforms
+   * Resolves a promise, catch errors, and transform
    * the result to a {@linkcode Result} type.
    * @param promise The promise to resolve.
-   * @returns The wrapped promise.
+   * @returns The Promise result.
    */
   resolve<T>(promise: PromiseLike<T>): Promise<Result<T, E>>;
   /**
