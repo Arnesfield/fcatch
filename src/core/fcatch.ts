@@ -10,7 +10,7 @@ import { res } from './result.js';
  * ```
  */
 export const f = (() => f) as FCatch;
-const props = { ...create(), catch: mapErr => create(mapErr) } as FCatch;
+const props = { catch: mapErr => create(mapErr), ...create() } as FCatch;
 for (const [key, value] of Object.entries(props)) {
   Object.defineProperty(f, key, { value, enumerable: true });
 }
@@ -18,7 +18,7 @@ for (const [key, value] of Object.entries(props)) {
 function create<E>(
   mapErr: (error: unknown) => E = error => error as E
 ): Catch<E> {
-  function sync<T extends (...args: any) => any>(fn: T) {
+  function wrap<T extends (...args: any) => any>(fn: T) {
     type V = ReturnType<T>;
     return function (this: ThisParameterType<T>, ...args: Parameters<T>) {
       try {
@@ -29,7 +29,7 @@ function create<E>(
     };
   }
 
-  function async<T extends (...args: any) => any>(fn: T) {
+  function wrapAsync<T extends (...args: any) => any>(fn: T) {
     type V = Awaited<ReturnType<T>>;
     return async function (this: ThisParameterType<T>, ...args: Parameters<T>) {
       try {
@@ -42,14 +42,14 @@ function create<E>(
 
   // include async here to ensure promise in case fn is non-async
   async function runAsync<T>(fn: () => T) {
-    return async(fn)();
+    return wrapAsync(fn)();
   }
 
   return {
-    sync,
-    async,
-    run: fn => sync(fn)(),
+    run: fn => wrap(fn)(),
     runAsync,
-    resolve: promise => runAsync(() => promise)
+    resolve: promise => runAsync(() => promise),
+    wrap,
+    wrapAsync
   };
 }

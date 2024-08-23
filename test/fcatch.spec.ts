@@ -26,7 +26,7 @@ function expectResult<T, E>(result: Result<T, E>, ok: boolean, value?: T | E) {
 }
 
 function expectCatch(value: Catch) {
-  const props = ['sync', 'async', 'run', 'runAsync', 'resolve'];
+  const props = ['run', 'runAsync', 'resolve', 'wrap', 'wrapAsync'];
   for (const prop of props) {
     expect(value).to.have.property(prop).that.is.a('function');
   }
@@ -38,8 +38,8 @@ describe('f', () => {
   });
 
   it('should contain Catch properties', () => {
-    expectCatch(f);
     expect(f).to.have.property('catch').that.is.a('function');
+    expectCatch(f);
   });
 
   it('should return itself', () => {
@@ -52,12 +52,12 @@ describe('f', () => {
     expect(a).to.equal(b); // useless check
   });
 
-  it('sync call should return a function', () => {
-    expect(f.sync(() => {})).to.be.a('function');
+  it('should return a function for wrap call', () => {
+    expect(f.wrap(() => {})).to.be.a('function');
   });
 
-  it('async call should return a function', () => {
-    expect(f.async(() => {})).to.be.a('function');
+  it('should return a function for wrapAsync call', () => {
+    expect(f.wrapAsync(() => {})).to.be.a('function');
   });
 
   function testResultObject(result: Result<number>) {
@@ -154,184 +154,10 @@ describe('f', () => {
     return greeter;
   }
 
-  describe('sync', () => {
-    it('should return a Result object', () => {
-      const result = f.sync((n: number, m: number) => n + m)(1, 2);
-      testResultObject(result);
-    });
-
-    it('should catch errors', () => {
-      const error = new Error('error');
-      const result = f<Error>().sync((n: number) => {
-        if (n > 0) {
-          throw error;
-        }
-        return n;
-      })(1);
-      testCatchErrors(result, error);
-    });
-
-    it('should handle discriminated unions', () => {
-      const result = f<Error>().sync((n: number) => {
-        if (n > 0) {
-          throw new Error('error');
-        }
-        return n;
-      })(1);
-      testDiscriminatedUnions(result);
-    });
-
-    it('should map caught errors', () => {
-      const message = 'error';
-      const result = f
-        .catch(error => (error instanceof Error ? error.message : 'default'))
-        .sync((n: number) => {
-          if (n > 0) {
-            throw new Error(message);
-          }
-          return n;
-        })(1);
-      testMapCaughtErrors(result, message);
-    });
-
-    it('should handle different return types', () => {
-      const fc1: Result<number> = f.sync(() => 1)();
-      expect(fc1.value).to.equal(1);
-      const fc2: Result<string, Error> = f<Error>().sync(() => '1')();
-      expect(fc2.value).to.equal('1');
-      const fc3: Result<Result<string, Error>> = f.sync(() => fc2)();
-      expect(fc3.value).to.equal(fc2);
-    });
-
-    it('should handle `this` keyword', () => {
-      const greet = f.sync(greeter.greet);
-      // @ts-expect-error
-      const errResult = greet('World');
-      expectResult(errResult, false);
-      expect(errResult.error).to.be.an.instanceOf(TypeError);
-      const result = greet.call(greeter, 'World');
-      expectResult(result, true, 'Hello World!');
-      const result2 = greet.call(
-        { value: 'Hi', greet: greeter.greet },
-        'fcatch'
-      );
-      expectResult(result2, true, 'Hi fcatch!');
-    });
-
-    it('should allow explicit type for function generics', async () => {
-      // @ts-expect-error
-      const setGreeting: <T extends Greeter>(greeter: T) => Result<T, Error> =
-        f<Error>().sync(_setGreeting).bind({ value: 'Hey' });
-
-      const result = setGreeting(asyncGreeter);
-      if (!result.ok) {
-        throw new Error('Expected result.ok to be true.');
-      }
-      expectResult(result, true, asyncGreeter);
-      const { value } = result;
-      expect(value).to.have.property('greetAsync').that.is.a('function');
-
-      const promise = value.greetAsync('World');
-      expect(promise).to.be.a('promise');
-      expect(await promise).to.equal('Hey World!');
-    });
-  });
-
-  describe('async', () => {
-    it('should return a Promise that resolves to a Result object', async () => {
-      const promise = f.async(async (n: number, m: number) => {
-        await delay();
-        return n + m;
-      })(1, 2);
-      expect(promise).to.be.a('promise');
-      testResultObject(await promise);
-    });
-
-    it('should catch errors', async () => {
-      const error = new Error();
-      const result = await f<Error>().async(async (n: number) => {
-        await delay();
-        if (n > 0) {
-          throw error;
-        }
-        return n;
-      })(1);
-      testCatchErrors(result, error);
-    });
-
-    it('should handle discriminated unions', async () => {
-      const result = await f<Error>().async(async (n: number) => {
-        await delay();
-        if (n > 0) {
-          throw new Error('error');
-        }
-        return n;
-      })(1);
-      testDiscriminatedUnions(result);
-    });
-
-    it('should map caught errors', async () => {
-      const message = 'error';
-      const result = await f
-        .catch(error => (error instanceof Error ? error.message : 'default'))
-        .async(async (n: number) => {
-          await delay();
-          if (n > 0) {
-            throw new Error(message);
-          }
-          return n;
-        })(1);
-      testMapCaughtErrors(result, message);
-    });
-
-    it('should handle different return types', async () => {
-      const fc1: Result<number> = await f.async(() => 1)();
-      expect(fc1.value).to.equal(1);
-      const fc2: Result<string, Error> = await f<Error>().async(async () => {
-        await delay();
-        return '1';
-      })();
-      expect(fc2.value).to.equal('1');
-      const fc3: Result<Result<string, Error>> = await f.async(
-        async () => fc2
-      )();
-      expect(fc3.value).to.equal(fc2);
-    });
-
-    it('should handle `this` keyword', async () => {
-      const greet = f.async(greeter.greet);
-      // @ts-expect-error
-      const errResult = await greet('World');
-      expectResult(errResult, false);
-      expect(errResult.error).to.be.an.instanceOf(TypeError);
-      const result = await greet.call(greeter, 'World');
-      expectResult(result, true, 'Hello World!');
-      const result2 = await greet.call(
-        { value: 'Hi', greet: greeter.greet },
-        'fcatch'
-      );
-      expectResult(result2, true, 'Hi fcatch!');
-    });
-
-    it('should allow explicit type for function generics', async () => {
-      // @ts-expect-error
-      const setGreeting: <T extends Greeter>(
-        greeter: T
-      ) => Promise<Result<T, Error>> = f<Error>()
-        .async(_setGreeting)
-        .bind({ value: 'Hey' });
-
-      const result = await setGreeting(asyncGreeter);
-      if (!result.ok) {
-        throw new Error('Expected result.ok to be true.');
-      }
-      expectResult(result, true, asyncGreeter);
-      const { value } = result;
-      expect(value).to.have.property('greetAsync').that.is.a('function');
-
-      const promise = value.greetAsync('World');
-      expect(promise).to.be.a('promise');
-      expect(await promise).to.equal('Hey World!');
+  describe('catch', () => {
+    it('should accept a map error function', () => {
+      const fc: Catch<Error> = f.catch(error => error as Error);
+      expectCatch(fc);
     });
   });
 
@@ -410,10 +236,186 @@ describe('f', () => {
     });
   });
 
-  describe('catch', () => {
-    it('should accept a map error function', () => {
-      const fc: Catch<Error> = f.catch(error => error as Error);
-      expectCatch(fc);
+  describe('wrap', () => {
+    it('should return a Result object', () => {
+      const result = f.wrap((n: number, m: number) => n + m)(1, 2);
+      testResultObject(result);
+    });
+
+    it('should catch errors', () => {
+      const error = new Error('error');
+      const result = f<Error>().wrap((n: number) => {
+        if (n > 0) {
+          throw error;
+        }
+        return n;
+      })(1);
+      testCatchErrors(result, error);
+    });
+
+    it('should handle discriminated unions', () => {
+      const result = f<Error>().wrap((n: number) => {
+        if (n > 0) {
+          throw new Error('error');
+        }
+        return n;
+      })(1);
+      testDiscriminatedUnions(result);
+    });
+
+    it('should map caught errors', () => {
+      const message = 'error';
+      const result = f
+        .catch(error => (error instanceof Error ? error.message : 'default'))
+        .wrap((n: number) => {
+          if (n > 0) {
+            throw new Error(message);
+          }
+          return n;
+        })(1);
+      testMapCaughtErrors(result, message);
+    });
+
+    it('should handle different return types', () => {
+      const fc1: Result<number> = f.wrap(() => 1)();
+      expect(fc1.value).to.equal(1);
+      const fc2: Result<string, Error> = f<Error>().wrap(() => '1')();
+      expect(fc2.value).to.equal('1');
+      const fc3: Result<Result<string, Error>> = f.wrap(() => fc2)();
+      expect(fc3.value).to.equal(fc2);
+    });
+
+    it('should handle `this` keyword', () => {
+      const greet = f.wrap(greeter.greet);
+      // @ts-expect-error
+      const errResult = greet('World');
+      expectResult(errResult, false);
+      expect(errResult.error).to.be.an.instanceOf(TypeError);
+      const result = greet.call(greeter, 'World');
+      expectResult(result, true, 'Hello World!');
+      const result2 = greet.call(
+        { value: 'Hi', greet: greeter.greet },
+        'fcatch'
+      );
+      expectResult(result2, true, 'Hi fcatch!');
+    });
+
+    it('should allow explicit type for function generics', async () => {
+      // @ts-expect-error
+      const setGreeting: <T extends Greeter>(greeter: T) => Result<T, Error> =
+        f<Error>().wrap(_setGreeting).bind({ value: 'Hey' });
+
+      const result = setGreeting(asyncGreeter);
+      if (!result.ok) {
+        throw new Error('Expected result.ok to be true.');
+      }
+      expectResult(result, true, asyncGreeter);
+      const { value } = result;
+      expect(value).to.have.property('greetAsync').that.is.a('function');
+
+      const promise = value.greetAsync('World');
+      expect(promise).to.be.a('promise');
+      expect(await promise).to.equal('Hey World!');
+    });
+  });
+
+  describe('wrapAsync', () => {
+    it('should return a Promise that resolves to a Result object', async () => {
+      const promise = f.wrapAsync(async (n: number, m: number) => {
+        await delay();
+        return n + m;
+      })(1, 2);
+      expect(promise).to.be.a('promise');
+      testResultObject(await promise);
+    });
+
+    it('should catch errors', async () => {
+      const error = new Error();
+      const result = await f<Error>().wrapAsync(async (n: number) => {
+        await delay();
+        if (n > 0) {
+          throw error;
+        }
+        return n;
+      })(1);
+      testCatchErrors(result, error);
+    });
+
+    it('should handle discriminated unions', async () => {
+      const result = await f<Error>().wrapAsync(async (n: number) => {
+        await delay();
+        if (n > 0) {
+          throw new Error('error');
+        }
+        return n;
+      })(1);
+      testDiscriminatedUnions(result);
+    });
+
+    it('should map caught errors', async () => {
+      const message = 'error';
+      const result = await f
+        .catch(error => (error instanceof Error ? error.message : 'default'))
+        .wrapAsync(async (n: number) => {
+          await delay();
+          if (n > 0) {
+            throw new Error(message);
+          }
+          return n;
+        })(1);
+      testMapCaughtErrors(result, message);
+    });
+
+    it('should handle different return types', async () => {
+      const fc1: Result<number> = await f.wrapAsync(() => 1)();
+      expect(fc1.value).to.equal(1);
+      const fc2: Result<string, Error> = await f<Error>().wrapAsync(
+        async () => {
+          await delay();
+          return '1';
+        }
+      )();
+      expect(fc2.value).to.equal('1');
+      const fc3: Result<Result<string, Error>> = await f.wrapAsync(
+        async () => fc2
+      )();
+      expect(fc3.value).to.equal(fc2);
+    });
+
+    it('should handle `this` keyword', async () => {
+      const greet = f.wrapAsync(greeter.greet);
+      // @ts-expect-error
+      const errResult = await greet('World');
+      expectResult(errResult, false);
+      expect(errResult.error).to.be.an.instanceOf(TypeError);
+      const result = await greet.call(greeter, 'World');
+      expectResult(result, true, 'Hello World!');
+      const result2 = await greet.call(
+        { value: 'Hi', greet: greeter.greet },
+        'fcatch'
+      );
+      expectResult(result2, true, 'Hi fcatch!');
+    });
+
+    it('should allow explicit type for function generics', async () => {
+      // @ts-expect-error
+      const setGreeting: <T extends Greeter>(
+        greeter: T
+      ) => Promise<Result<T, Error>> = f<Error>()
+        .wrapAsync(_setGreeting)
+        .bind({ value: 'Hey' });
+
+      const result = await setGreeting(asyncGreeter);
+      if (!result.ok) {
+        throw new Error('Expected result.ok to be true.');
+      }
+      expectResult(result, true, asyncGreeter);
+      const { value } = result;
+      expect(value).to.have.property('greetAsync').that.is.a('function');
+
+      const promise = value.greetAsync('World');
+      expect(promise).to.be.a('promise');
+      expect(await promise).to.equal('Hey World!');
     });
   });
 });
