@@ -128,31 +128,23 @@ describe('f', () => {
     });
   }
 
-  interface Greeter {
-    value: string;
-    greet(this: this, greet: string): string;
-  }
-  const greeter: Greeter = {
-    value: 'Hello',
-    greet(name: string) {
+  class Greeter {
+    constructor(public value = 'Hello') {}
+    greet(this: this, name: string) {
       return `${this.value} ${name}!`;
     }
-  };
-  const asyncGreeter = {
-    ...greeter,
-    async greetAsync(name: string) {
+    setGreetingTo<T extends Greeter>(this: this, greeter: T) {
+      greeter.value = this.value;
+      return greeter;
+    }
+  }
+  class AsyncGreeter extends Greeter {
+    async greetAsync(this: this, name: string) {
       await delay();
       return this.greet(name);
     }
-  };
-
-  interface GreetSetter {
-    value: string;
   }
-  function _setGreeting<T extends Greeter>(this: GreetSetter, greeter: T) {
-    greeter.value = this.value;
-    return greeter;
-  }
+  const greeter = new Greeter();
 
   describe('catch', () => {
     it('should accept a map error function', () => {
@@ -161,14 +153,28 @@ describe('f', () => {
     });
   });
 
-  // TODO: run and runAsync, test this and args
-
   describe('run', () => {
     it('should run and return a Result object', () => {
       const result = f.run(() => 1);
       expectResult(result, true, 1);
       const result2 = f.run((...args) => args.length);
       expectResult(result2, true, 0);
+    });
+
+    it('should handle `this` and args', () => {
+      // @ts-expect-error
+      const errResult = f.run(greeter.greet);
+      expectResult(errResult, false);
+      expect(errResult.error).to.be.an.instanceOf(TypeError);
+
+      const result = f.run(greeter.greet, new Greeter('Hi'), 'fcatch');
+      expectResult(result, true, 'Hi fcatch!');
+
+      function madGreet(this: Greeter, name: string) {
+        return this.greet(name).toUpperCase();
+      }
+      const result2 = f.run(madGreet, greeter, 'World');
+      expectResult(result2, true, 'HELLO WORLD!');
     });
 
     it('should map caught errors', () => {
@@ -191,6 +197,27 @@ describe('f', () => {
       expectResult(await promise, true, 1);
       const result = await f.runAsync((...args) => args.length);
       expectResult(result, true, 0);
+    });
+
+    it('should handle `this` and args', async () => {
+      const asyncGreeter = new AsyncGreeter();
+      // @ts-expect-error
+      const errResult = await f.runAsync(asyncGreeter.greetAsync);
+      expectResult(errResult, false);
+      expect(errResult.error).to.be.an.instanceOf(TypeError);
+
+      const result = await f.runAsync(
+        asyncGreeter.greetAsync,
+        new AsyncGreeter('Hi'),
+        'fcatch'
+      );
+      expectResult(result, true, 'Hi fcatch!');
+
+      async function madGreetAsync(this: AsyncGreeter, name: string) {
+        return (await this.greetAsync(name)).toUpperCase();
+      }
+      const result2 = await f.runAsync(madGreetAsync, asyncGreeter, 'World');
+      expectResult(result2, true, 'HELLO WORLD!');
     });
 
     it('should map caught errors', async () => {
@@ -295,27 +322,38 @@ describe('f', () => {
       expect(errResult.error).to.be.an.instanceOf(TypeError);
       const result = greet.call(greeter, 'World');
       expectResult(result, true, 'Hello World!');
-      const result2 = greet.call(
-        { value: 'Hi', greet: greeter.greet },
-        'fcatch'
-      );
+      const result2 = greet.call(new Greeter('Hi'), 'fcatch');
       expectResult(result2, true, 'Hi fcatch!');
+    });
+
+    it('should not bind `this` to original function', () => {
+      const setGreetingTo = f
+        .wrap(greeter.setGreetingTo)
+        .bind(new Greeter('Hi'));
+      const result = setGreetingTo(new Greeter('Hey'));
+      expectResult(result, true);
+      if (!result.ok) {
+        throw new Error('Expected result.ok to be true.');
+      }
+      expect(result.value.value).to.equal('Hi');
+
+      const helloGreeter = greeter.setGreetingTo(new Greeter('Hey'));
+      expect(helloGreeter.value).to.equal('Hello');
     });
 
     it('should allow explicit type for function generics', async () => {
       // @ts-expect-error
-      const setGreeting: <T extends Greeter>(greeter: T) => Result<T, Error> =
-        f<Error>().wrap(_setGreeting).bind({ value: 'Hey' });
+      const setGreetingTo: <T extends Greeter>(greeter: T) => Result<T, Error> =
+        f<Error>().wrap(greeter.setGreetingTo).bind(new Greeter('Hey'));
 
-      const result = setGreeting(asyncGreeter);
+      const asyncGreeter = new AsyncGreeter();
+      const result = setGreetingTo(asyncGreeter);
+      expectResult(result, true, asyncGreeter);
       if (!result.ok) {
         throw new Error('Expected result.ok to be true.');
       }
-      expectResult(result, true, asyncGreeter);
-      const { value } = result;
-      expect(value).to.have.property('greetAsync').that.is.a('function');
 
-      const promise = value.greetAsync('World');
+      const promise = result.value.greetAsync('World');
       expect(promise).to.be.a('promise');
       expect(await promise).to.equal('Hey World!');
     });
@@ -392,32 +430,52 @@ describe('f', () => {
       expect(errResult.error).to.be.an.instanceOf(TypeError);
       const result = await greet.call(greeter, 'World');
       expectResult(result, true, 'Hello World!');
-      const result2 = await greet.call(
-        { value: 'Hi', greet: greeter.greet },
-        'fcatch'
-      );
+      const result2 = await greet.call(new Greeter('Hi'), 'fcatch');
       expectResult(result2, true, 'Hi fcatch!');
+    });
+
+    it('should not bind `this` to original function', async () => {
+      const setGreetingTo = f
+        .wrapAsync(greeter.setGreetingTo)
+        .bind(new Greeter('Hi'));
+
+      const promise = setGreetingTo(new Greeter('Hey'));
+      expect(promise).to.be.a('promise');
+      const result = await promise;
+      expectResult(result, true);
+      if (!result.ok) {
+        throw new Error('Expected result.ok to be true.');
+      }
+      expect(result.value.value).to.equal('Hi');
+
+      const helloGreeter = greeter.setGreetingTo(new Greeter('Hey'));
+      expect(helloGreeter.value).to.equal('Hello');
     });
 
     it('should allow explicit type for function generics', async () => {
       // @ts-expect-error
-      const setGreeting: <T extends Greeter>(
+      const setGreetingTo: <T extends Greeter>(
         greeter: T
       ) => Promise<Result<T, Error>> = f<Error>()
-        .wrapAsync(_setGreeting)
-        .bind({ value: 'Hey' });
+        .wrapAsync(greeter.setGreetingTo)
+        .bind(new Greeter('Hey'));
 
-      const result = await setGreeting(asyncGreeter);
+      // make sure normal call is not bound
+      const heyGreeter = greeter.setGreetingTo(new Greeter('Hey'));
+      expect(heyGreeter.value).to.equal('Hello');
+
+      const asyncGreeter = new AsyncGreeter();
+      const promise = setGreetingTo(asyncGreeter);
+      expect(promise).to.be.a('promise');
+      const result = await promise;
+      expectResult(result, true, asyncGreeter);
       if (!result.ok) {
         throw new Error('Expected result.ok to be true.');
       }
-      expectResult(result, true, asyncGreeter);
-      const { value } = result;
-      expect(value).to.have.property('greetAsync').that.is.a('function');
 
-      const promise = value.greetAsync('World');
-      expect(promise).to.be.a('promise');
-      expect(await promise).to.equal('Hey World!');
+      const greetPromise = result.value.greetAsync('World');
+      expect(greetPromise).to.be.a('promise');
+      expect(await greetPromise).to.equal('Hey World!');
     });
   });
 });
