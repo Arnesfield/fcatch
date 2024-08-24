@@ -25,7 +25,7 @@ function expectResult<T, E>(result: Result<T, E>, ok: boolean, value?: T | E) {
   }
 }
 
-function expectCatch(value: Catch) {
+function expectCatch<E>(value: Catch<E>) {
   const props = ['run', 'runAsync', 'resolve', 'wrap', 'wrapAsync'];
   for (const prop of props) {
     expect(value).to.have.property(prop).that.is.a('function');
@@ -37,19 +37,22 @@ describe('f', () => {
     expect(f).to.be.a('function');
   });
 
-  it('should contain Catch properties', () => {
+  it('should have FCatch properties', () => {
     expect(f).to.have.property('catch').that.is.a('function');
     expectCatch(f);
   });
 
-  it('should return itself', () => {
-    expect(f).to.equal(f);
+  it('should return itself when called', () => {
+    expect(f).to.equal(f());
   });
 
   it('should accept error generic type', () => {
     const a: FCatch<unknown> = f;
     const b: FCatch<Error> = f<Error>();
-    expect(a).to.equal(b); // useless check
+    // @ts-expect-error
+    const c: FCatch<null> = f<Error>();
+    expect(a).to.equal(b);
+    expect(b).to.equal(c);
   });
 
   it('should return a function for wrap call', () => {
@@ -147,9 +150,19 @@ describe('f', () => {
   const greeter = new Greeter();
 
   describe('catch', () => {
-    it('should accept a map error function', () => {
-      const fc: Catch<Error> = f.catch(error => error as Error);
-      expectCatch(fc);
+    const mapErr = (error: unknown) => error as Error;
+
+    it('should accept a map error function and return a Catch object', () => {
+      // @ts-expect-error
+      expectCatch(f.catch());
+      expectCatch<Error>(f.catch(mapErr));
+      // @ts-expect-error
+      expectCatch<null>(f.catch(mapErr));
+    });
+
+    it('should not return the same instance', () => {
+      expect(f.catch(mapErr)).to.not.equal(f);
+      expect(f.catch(mapErr)).to.not.equal(f.catch(mapErr));
     });
   });
 
